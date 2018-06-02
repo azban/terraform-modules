@@ -1,5 +1,9 @@
-variable "dns_name" {
+variable "redirect_to" {
   type = "string"
+}
+
+variable "redirect_from" {
+  type = "list"
 }
 
 variable "dns_zone_id" {
@@ -11,16 +15,16 @@ variable "cloudfront_ssl_certificate_arn" {
 }
 
 resource "aws_s3_bucket" "main" {
-  bucket = "www.${var.dns_name}"
+  bucket = "${var.redirect_to}-redirects"
   acl = "public-read"
   website = {
-    redirect_all_requests_to = "https://${var.dns_name}"
+    redirect_all_requests_to = "https://${var.redirect_to}"
   }
 }
 
 resource "aws_cloudfront_distribution" "main" {
   enabled = true
-  aliases = ["www.${var.dns_name}"]
+  aliases = ["${var.redirect_from}"]
   default_cache_behavior = {
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
     cached_methods = ["GET", "HEAD"]
@@ -63,8 +67,9 @@ resource "aws_cloudfront_distribution" "main" {
 }
 
 resource "aws_route53_record" "main" {
+  count = "${length(var.redirect_from)}"
   zone_id = "${var.dns_zone_id}"
-  name = "www.${var.dns_name}"
+  name = "${element(var.redirect_from, count.index)}"
   type = "A"
   alias = {
     name = "${aws_cloudfront_distribution.main.domain_name}"
